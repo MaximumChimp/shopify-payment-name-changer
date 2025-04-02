@@ -1,46 +1,62 @@
 <?php
-// Include Composer autoloader
-require 'vendor/autoload.php';
+session_start();
+require 'vendor/autoload.php'; // For Guzzle
 
 use GuzzleHttp\Client;
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-$dotenv->load();
+use GuzzleHttp\Exception\RequestException;
 
-// Get the shop and access token (either from session or database)
+// Get the stored access token and shop domain
+if (!isset($_SESSION['access_token']) || !isset($_GET['shop'])) {
+    die("Error: Missing required parameters.");
+}
+
+$access_token = $_SESSION['access_token'];
 $shop = $_GET['shop'];
-$accessToken = $_SESSION['access_token'];
 
-// Shopify Admin API endpoint to get payment methods
+// Define new payment method name
+$new_payment_name = "Custom Payment Name"; // Change this to your desired name
+
+// Shopify API endpoint to update payment method
+$url = "https://$shop/admin/api/2023-10/payment_gateways.json";
+
 $client = new Client();
-$response = $client->get("https://{$shop}/admin/api/2023-01/payment_gateways.json", [
-    'headers' => [
-        'X-Shopify-Access-Token' => $accessToken,
-    ],
-]);
 
-$paymentMethods = json_decode($response->getBody()->getContents(), true);
+try {
+    // Get the list of payment gateways
+    $response = $client->get($url, [
+        'headers' => [
+            'X-Shopify-Access-Token' => $access_token,
+            'Content-Type' => 'application/json'
+        ]
+    ]);
 
-// For demonstration, let's change the name of the first payment method
-$paymentMethodId = $paymentMethods['payment_gateways'][0]['id'];  // Get the ID of the first payment method
+    $body = json_decode($response->getBody(), true);
+    
+    // Find the gateway to update (e.g., first available gateway)
+    if (empty($body['payment_gateways'])) {
+        die("No payment gateways found.");
+    }
 
-$newPaymentMethodName = "New Payment Method Name";  // The new name for the payment method
+    $gateway_id = $body['payment_gateways'][0]['id']; // Get the first payment gateway ID
 
-// Shopify Admin API endpoint to update the payment method name
-$response = $client->put("https://{$shop}/admin/api/2023-01/payment_gateways/{$paymentMethodId}.json", [
-    'json' => [
-        'payment_gateway' => [
-            'name' => $newPaymentMethodName,
+    // Update the payment method name
+    $update_url = "https://$shop/admin/api/2023-10/payment_gateways/$gateway_id.json";
+    $update_response = $client->put($update_url, [
+        'headers' => [
+            'X-Shopify-Access-Token' => $access_token,
+            'Content-Type' => 'application/json'
         ],
-    ],
-    'headers' => [
-        'X-Shopify-Access-Token' => $accessToken,
-    ],
-]);
+        'json' => [
+            'payment_gateway' => [
+                'id' => $gateway_id,
+                'name' => $new_payment_name
+            ]
+        ]
+    ]);
 
-// Check if the update was successful
-if ($response->getStatusCode() === 200) {
-    echo "Payment method name updated successfully!";
-} else {
-    echo "Failed to update payment method name.";
+    echo "Payment method name updated successfully to '$new_payment_name'.";
+
+} catch (RequestException $e) {
+    echo "Error updating payment method: " . $e->getMessage();
 }
 ?>

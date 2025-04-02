@@ -1,23 +1,24 @@
 <?php
-// Set your Shopify app credentials
-require 'vendor/autoload.php';
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-$dotenv->load();
+session_start();
 
+// Load environment variables (Heroku)
+$SHOPIFY_API_KEY = getenv('SHOPIFY_API_KEY');
+$SHOPIFY_APP_URL = getenv('SHOPIFY_APP_URL'); // e.g., https://your-app.herokuapp.com
 
-$shopifyApiKey = getenv('SHOPIFY_API_KEY');  // Set this as an environment variable
-$shopifyApiSecret = getenv('SHOPIFY_API_SECRET');  // Set this as an environment variable
-$redirectUri = 'https://shopify-payment-name-changer-a2a1c1878c63.herokuapp.com/callback';  // The URL Shopify will send the user back to after authorization
-
-if (isset($_GET['shop'])) {
-    $shop = $_GET['shop'];
-    $scopes = 'read_payment_methods,write_payment_methods'; // Required OAuth scopes
-
-    // Shopify OAuth URL
-    $oauthUrl = "https://{$shop}/admin/oauth/authorize?client_id={$shopifyApiKey}&scope={$scopes}&redirect_uri={$redirectUri}";
-
-    // Redirect to Shopify for OAuth authentication
-    header("Location: $oauthUrl");
-    exit;
+if (!isset($_GET['shop'])) {
+    die("Error: 'shop' parameter is required.");
 }
+
+$shop = $_GET['shop'];
+$scopes = "read_orders,write_payment_gateways";
+$redirect_uri = "$SHOPIFY_APP_URL/auth/callback";
+
+// Step 1: Redirect user to Shopify for OAuth authentication
+$install_url = "https://$shop/admin/oauth/authorize?"
+    . "client_id=$SHOPIFY_API_KEY"
+    . "&scope=$scopes"
+    . "&redirect_uri=$redirect_uri";
+
+header("Location: $install_url");
+exit();
 ?>

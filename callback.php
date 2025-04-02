@@ -1,40 +1,48 @@
 <?php
-// Include Composer autoloader
-require 'vendor/autoload.php';
+session_start();
+require 'vendor/autoload.php'; // For Guzzle
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
 
-$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
-$dotenv->load();
+$SHOPIFY_API_KEY = getenv('SHOPIFY_API_KEY');
+$SHOPIFY_API_SECRET = getenv('SHOPIFY_API_SECRET');
+$APP_URL = getenv('SHOPIFY_APP_URL'); // Heroku or Vercel URL
 
+if (!isset($_GET['shop'])) {
+    die("Error: 'shop' parameter is required.");
+}
 
-// Set your Shopify app credentials
-$shopifyApiKey = getenv('SHOPIFY_API_KEY');
-$shopifyApiSecret = getenv('SHOPIFY_API_SECRET');
-$redirectUri = 'https://shopify-payment-name-changer-a2a1c1878c63.herokuapp.com/callback';  // The URL Shopify will send the user back to after authorization
+$shop = $_GET['shop'];
+$scopes = "read_orders,write_payment_gateways";
+$redirect_uri = "$APP_URL/auth/callback";
 
-if (isset($_GET['code']) && isset($_GET['shop'])) {
-    $shop = $_GET['shop'];
-    $code = $_GET['code'];
+if (!isset($_GET['code'])) {
+    die("Error: No code received from Shopify.");
+}
 
-    // Exchange the code for an access token
-    $client = new Client();
-    $response = $client->post("https://{$shop}/admin/oauth/access_token", [
+$code = $_GET['code'];
+
+// Step 1: Exchange authorization code for access token
+$client = new Client();
+
+try {
+    $response = $client->post("https://$shop/admin/oauth/access_token", [
         'form_params' => [
-            'client_id' => $shopifyApiKey,
-            'client_secret' => $shopifyApiSecret,
-            'code' => $code,
-        ],
+            'client_id' => $SHOPIFY_API_KEY,
+            'client_secret' => $SHOPIFY_API_SECRET,
+            'code' => $code
+        ]
     ]);
 
-    $data = json_decode($response->getBody()->getContents(), true);
-    $accessToken = $data['access_token'];
+    $body = json_decode($response->getBody(), true);
+    $_SESSION['access_token'] = $body['access_token'];
 
-    // Store the access token in session or database for future use
-    $_SESSION['access_token'] = $accessToken;
+    // Redirect to the next step (e.g., change payment method)
+    header("Location: $APP_URL/change-payment?shop=$shop");
+    exit();
 
-    // Redirect the user to the page where they can change the payment method name
-    header("Location: /change_payment_method.php?shop={$shop}");
-    exit;
+} catch (RequestException $e) {
+    die("Error getting access token: " . $e->getMessage());
 }
 ?>
