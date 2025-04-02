@@ -11,7 +11,7 @@ $dotenv->load();
 // Set your Shopify app credentials
 $shopifyApiKey = getenv('SHOPIFY_API_KEY');
 $shopifyApiSecret = getenv('SHOPIFY_API_SECRET');
-$redirectUri = 'https://your-app-name.herokuapp.com/callback';  // The URL Shopify will send the user back to after authorization
+$redirectUri = 'https://shopify-payment-name-changer-a2a1c1878c63.herokuapp.com/callback';  // The URL Shopify will send the user back to after authorization
 
 if (isset($_GET['code']) && isset($_GET['shop'])) {
     $shop = $_GET['shop'];
