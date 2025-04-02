@@ -16,7 +16,7 @@ if (!str_ends_with($shop, ".myshopify.com")) {
     $shop .= ".myshopify.com";
 }
 
-$scopes = "read_orders,write_payment_gateways";
+$scopes = "read_orders,write_payment_gateways,read_payment_gateways"; // Updated scopes for payment gateways
 $redirect_uri = "$SHOPIFY_APP_URL/auth/callback";
 
 // Step 1: Redirect user to Shopify for OAuth authentication
